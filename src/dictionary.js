@@ -60,3 +60,5 @@ class Dictionary {
     return this.values.length;
   }
 }
+
+export default Dictionary;
