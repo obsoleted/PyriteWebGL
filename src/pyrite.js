@@ -1,12 +1,13 @@
 /* eslint no-unused-vars: ["off"]*/
+/* global window:false, document:false requestAnimationFrame:false cancelAnimationFrame: false */
 
 import THREE from 'three';
 import TWEEN from 'tween.js';
+import UTMLatLng from 'utm-latlng';
 import Config from './config.js';
 import PyriteLoader from './loader.js';
-import FlyControls from './flycontrols.js';
-import utmObj from 'utm-latlng';
-import CTMLoader from './ctm/ctmloader.js';
+import FlyControls from './FlyControls.js';
+import CTMLoader from './ctm/CTMLoader.js';
 
 require('./skyShader.js');
 
@@ -33,12 +34,12 @@ class Pyrite {
 
     this.config = new Config();
 
-    this.config.lod = parseInt(lod);
-    this.config.maxlod = parseInt(maxlod);
+    this.config.lod = parseInt(lod, 10);
+    this.config.maxlod = parseInt(maxlod, 10);
     this.config.set = set;
     this.config.version = this.modelConfig.version;
     this.config.fmt = 'ctm';
-    this.config.debug = parseInt(debug);
+    this.config.debug = parseInt(debug, 10);
 
     this.cubeDetectorGroup = new THREE.Object3D();
     this.modelMeshGroup = new THREE.Object3D();
@@ -76,12 +77,22 @@ class Pyrite {
     chevronShape.lineTo(120, 60);
     chevronShape.lineTo(80, 20);
 
-    const extrudeSettings = { amount: 8, bevelEnabled: true, bevelSegments: 2, steps: 2, bevelSize: 1, bevelThickness: 1 };
+    const extrudeSettings = {
+      amount: 8,
+      bevelEnabled: true,
+      bevelSegments: 2,
+      steps: 2,
+      bevelSize: 1,
+      bevelThickness: 1,
+    };
 
     const chevronGeometry = new THREE.ExtrudeGeometry(chevronShape, extrudeSettings);
     chevronGeometry.center();
     chevronGeometry.rotateX(-Math.PI / 2);
-    const chevronMesh = new THREE.Mesh(chevronGeometry, new THREE.MeshLambertMaterial({ color: 0xeeeeee }));
+    const chevronMesh = new THREE.Mesh(
+      chevronGeometry,
+      new THREE.MeshLambertMaterial({ color: 0xeeeeee })
+    );
     chevronMesh.scale.set(0.05, 0.05, 0.05);
     this.chevron.add(chevronMesh);
     this.chevron.position.set(0, 0, 0);
@@ -94,12 +105,21 @@ class Pyrite {
     this.nextChevron.disabled = true;
     this.nextChevron.up = this.up;
     this.nextChevron.rotation.order = 'YXZ';
-    const nextChevronMesh = new THREE.Mesh(chevronGeometry, new THREE.MeshLambertMaterial({ color: 0xeeeeee }));
+    const nextChevronMesh = new THREE.Mesh(
+      chevronGeometry,
+      new THREE.MeshLambertMaterial({ color: 0xeeeeee })
+    );
     nextChevronMesh.scale.set(0.04, 0.04, 0.04);
     nextChevronMesh.name = 'nextChevron';
+
+    this.staticChevronsEnabled = false;
+
     this.prevChevron = new THREE.Object3D();
     this.prevChevron.disabled = true;
-    const prevChevronMesh = new THREE.Mesh(chevronGeometry, new THREE.MeshLambertMaterial({ color: 0xeeeeee }));
+    const prevChevronMesh = new THREE.Mesh(
+      chevronGeometry,
+      new THREE.MeshLambertMaterial({ color: 0xeeeeee })
+    );
     prevChevronMesh.scale.set(0.04, 0.04, 0.04);
     prevChevronMesh.name = 'prevChevron';
     this.nextChevron.add(nextChevronMesh);
@@ -112,112 +132,131 @@ class Pyrite {
     this.scene.add(this.cubeDetectorGroup);
     this.scene.add(this.modelMeshGroup);
 
-    const utm = new utmObj();
+    const utm = new UTMLatLng();
 
     this.started = false;
     this.markersLoaded = false;
 
     const ctmloader = new THREE.CTMLoader();
 
-    ctmloader.load('http://projectgreen.azureedge.net/skybox/marker_clubs_normals.ctm', (markerGeometry) => {
-      this.markerGeometry = markerGeometry;
-      this.markerGeometry.scale(3.25, 3.25, 3.25);
-      this.markerGeometry.center();
-      this.markerGeometry.translate(0, -this.markerGeometry.boundingBox.min.y, 0);
+    ctmloader.load('http://projectgreen.azureedge.net/skybox/marker_clubs_normals.ctm',
+      (markerGeometry) => {
+        this.markerGeometry = markerGeometry;
+        this.markerGeometry.scale(3.25, 3.25, 3.25);
+        this.markerGeometry.center();
+        this.markerGeometry.translate(0, -this.markerGeometry.boundingBox.min.y, 0);
 
-      this.markerMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
-      this.holesAndTees = [];
-      if (holes) {
-        this.holes = holes;
-        holes.forEach((hole) => {
-          let { Easting, Northing } = utm.convertLatLngToUtm(hole.GreenLocation.coordinates[1], hole.GreenLocation.coordinates[0]);
-          var sprite = new THREE.Mesh(this.markerGeometry, this.markerMaterial);
-          sprite.position.set(Easting - this.modelConfig.utmOffset.x, 500, (Northing - this.modelConfig.utmOffset.z) * -1);
-          hole.marker = sprite;
-          this.scene.add(sprite);
-
-          if (hole.tees && hole.tees[0] && hole.tees[0].Location) {
-            const tee = hole.tees[0];
-
-            let { Easting, Northing } = utm.convertLatLngToUtm(tee.Location.coordinates[1], tee.Location.coordinates[0]);
-
-            var sprite = new THREE.Object3D();
-            sprite.position.set(Easting - this.modelConfig.utmOffset.x, 500, (Northing - this.modelConfig.utmOffset.z) * -1);
-            tee.marker = sprite;
-            this.scene.add(sprite);
-            this.holesAndTees.push(tee);
-
-                        // console.log(`Hole: ${hole.HoleId} Tee: ${tee.TeeId}`);
-          }
-          this.holesAndTees.push(hole);
+        this.markerMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 1,
         });
-      }
+        this.holesAndTees = [];
+        if (holes) {
+          this.holes = holes;
+          holes.forEach((hole) => {
+            const { holeEasting, holeNorthing } = utm.convertLatLngToUtm(
+              hole.GreenLocation.coordinates[1],
+              hole.GreenLocation.coordinates[0]
+            );
+            const holeMarker = new THREE.Mesh(this.markerGeometry, this.markerMaterial);
+            holeMarker.position.set(
+              holeEasting - this.modelConfig.utmOffset.x,
+              500,
+              (holeNorthing - this.modelConfig.utmOffset.z) * -1
+            );
+            hole.marker = holeMarker;
+            this.scene.add(holeMarker);
 
-      this.renderer = new THREE.WebGLRenderer({ antialias: true });
-      this.renderer.autoClear = false;
-      this.renderer.setPixelRatio(window.devicePixelRatio);
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-      container.appendChild(this.renderer.domElement);
+            if (hole.tees && hole.tees[0] && hole.tees[0].Location) {
+              const tee = hole.tees[0];
 
-      this.controls = new FlyControls(this.cameraRig);
-      this.controls.handleClick = this.handleClick.bind(this);
-      this.controls.handleMouseMove = this.handleMouseMove.bind(this);
-      this.controls.movementSpeed = 0;
-      this.controls.rollSpeed = Math.PI / 24 * 2;
+              const { teeEasting, teeNorthing } = utm.convertLatLngToUtm(
+                tee.Location.coordinates[1],
+                tee.Location.coordinates[0]
+              );
 
-      this.mousePosition = new THREE.Vector2();
-      this.raycaster = new THREE.Raycaster();
+              const teeMarker = new THREE.Object3D();
+              teeMarker.position.set(
+                teeEasting - this.modelConfig.utmOffset.x,
+                500,
+                (teeNorthing - this.modelConfig.utmOffset.z) * -1
+              );
+              tee.marker = teeMarker;
+              this.scene.add(teeMarker);
+              this.holesAndTees.push(tee);
 
-      this.controls.autoForward = false;
-      this.controls.dragToLook = true;
+              // console.log(`Hole: ${hole.HoleId} Tee: ${tee.TeeId}`);
+            }
+            this.holesAndTees.push(hole);
+          });
+        }
 
-            // // skybox
-      this.initSky();
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.autoClear = false;
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(this.renderer.domElement);
 
-      this.debugStats = false;
+        this.controls = new FlyControls(this.cameraRig);
+        this.controls.handleClick = this.handleClick.bind(this);
+        this.controls.handleMouseMove = this.handleMouseMove.bind(this);
+        this.controls.movementSpeed = 0;
+        this.controls.rollSpeed = (Math.PI / 24) * 2;
 
-      if (this.debugStats) {
-        this.statsContainer = document.createElement('div');
-        this.statsContainer.style.position = 'absolute';
-        this.statsContainer.style.width = 100;
-        this.statsContainer.style.height = 100;
-        this.statsContainer.style.backgroundColor = 'blue';
-        this.statsContainer.style.top = '20px';
-        this.statsContainer.style.left = '20px';
-        document.body.appendChild(this.statsContainer);
-      }
+        this.mousePosition = new THREE.Vector2();
+        this.raycaster = new THREE.Raycaster();
 
-      this.onWindowResize = this.onWindowResize.bind(this);
-      window.addEventListener('resize', this.onWindowResize, false);
+        this.controls.autoForward = false;
+        this.controls.dragToLook = true;
 
-      this.nextAnimationRequestId = null;
+        // // skybox
+        this.initSky();
 
-      this.lookTarget = null;
+        this.debugStats = false;
 
-      this.animate = this.animate.bind(this);
+        if (this.debugStats) {
+          this.statsContainer = document.createElement('div');
+          this.statsContainer.style.position = 'absolute';
+          this.statsContainer.style.width = 100;
+          this.statsContainer.style.height = 100;
+          this.statsContainer.style.backgroundColor = 'blue';
+          this.statsContainer.style.top = '20px';
+          this.statsContainer.style.left = '20px';
+          document.body.appendChild(this.statsContainer);
+        }
 
-      this.markersLoaded = true;
-      if (this.started) {
-        this.start();
-      }
-    });
+        this.onWindowResize = this.onWindowResize.bind(this);
+        window.addEventListener('resize', this.onWindowResize, false);
+
+        this.nextAnimationRequestId = null;
+
+        this.lookTarget = null;
+
+        this.animate = this.animate.bind(this);
+
+        this.markersLoaded = true;
+        if (this.started) {
+          this.start();
+        }
+      });
   }
 
   initSky() {
-        // Add Sky Mesh
+    // Add Sky Mesh
     const sky = new THREE.Sky();
     this.scene.add(sky.mesh);
 
-        // Add Sun Helper
+    // Add Sun Helper
     const sunSphere = new THREE.Mesh(
-            new THREE.SphereBufferGeometry(20000, 16, 8),
-            new THREE.MeshBasicMaterial({ color: 0xffffff })
-        );
+      new THREE.SphereBufferGeometry(20000, 16, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
     sunSphere.position.y = -700000;
     sunSphere.visible = false;
     this.scene.add(sunSphere);
 
-        // / GUI
+    // / GUI
 
     const effectController = {
       turbidity: 1,
@@ -260,7 +299,12 @@ class Pyrite {
 
   resetCamera() {
     this.cameraRig.position.set(this.cameraPos.x, this.cameraPos.y + 700, this.cameraPos.z);
-    this.camera.rotation.set(this.cameraRot.x, this.cameraRot.y, this.cameraRot.z, this.cameraRot.order);
+    this.camera.rotation.set(
+      this.cameraRot.x,
+      this.cameraRot.y,
+      this.cameraRot.z,
+      this.cameraRot.order
+    );
   }
 
   onWindowResize() {
@@ -273,7 +317,9 @@ class Pyrite {
   }
 
   isUpgradingEnabled() {
-    return TWEEN.getAll().length === 0 && this.controls.moveVector.length() === 0 && this.controls.rotationVector.length() === 0;
+    return TWEEN.getAll().length === 0 &&
+      this.controls.moveVector.length() === 0 &&
+      this.controls.rotationVector.length() === 0;
   }
 
   animate(time) {
@@ -309,11 +355,9 @@ class Pyrite {
         this.uiScene.remove(this.chevron);
         this.chevron.disabled = true;
       }
-    } else {
-      if (this.chevron.disabled) {
-        this.uiScene.add(this.chevron);
-        this.chevron.disabled = false;
-      }
+    } else if (this.chevron.disabled) {
+      this.uiScene.add(this.chevron);
+      this.chevron.disabled = false;
     }
     if (this.currentHole) {
       this.chevronLookAt(this.nextChevron, this.currentHole.marker.position);
@@ -373,7 +417,10 @@ class Pyrite {
     this.cameraRigDummy.lookAt(position);
 
 
-    return { x: this.cameraRigDummy.rotation.x * -1, y: this.cameraRigDummy.rotation.y + THREE.Math.degToRad(180) };
+    return {
+      x: this.cameraRigDummy.rotation.x * -1,
+      y: this.cameraRigDummy.rotation.y + THREE.Math.degToRad(180),
+    };
   }
 
   cameraRigLookAt(position) {
@@ -382,7 +429,7 @@ class Pyrite {
     }
     this.lookTarget.position.copy(position);
 
-    let { x, y } = this.getNewRotationXY(position);
+    const { x, y } = this.getNewRotationXY(position);
 
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.x = x;
@@ -436,13 +483,20 @@ class Pyrite {
         tween.delay(this.tweenLengthInMs / 2);
         break;
       case 'position':
-        tween = new TWEEN.Tween(this.cameraRig.position).to(animationStop.value, this.tweenLengthInMs).easing(TWEEN.Easing.Linear.None).onUpdate(() => { this.cameraRigLookAt(this.lookTarget.position); });
+        tween = new TWEEN.Tween(this.cameraRig.position)
+          .to(animationStop.value, this.tweenLengthInMs)
+          .easing(TWEEN.Easing.Linear.None)
+          .onUpdate(() => { this.cameraRigLookAt(this.lookTarget.position); });
         break;
       case 'looktargetposition':
-        tween = new TWEEN.Tween(this.lookTarget.position).to(animationStop.value, this.tweenLengthInMs).easing(TWEEN.Easing.Linear.None).onUpdate(() => {
-          this.cameraRigLookAt(this.lookTarget.position);
-        });
+        tween = new TWEEN.Tween(this.lookTarget.position)
+          .to(animationStop.value, this.tweenLengthInMs)
+          .easing(TWEEN.Easing.Linear.None)
+          .onUpdate(() => {
+            this.cameraRigLookAt(this.lookTarget.position);
+          });
         break;
+      default: break;
     }
 
     return tween;
@@ -459,7 +513,9 @@ class Pyrite {
         animationStop = this.animationStops.shift();
         if (animationStop.type === 'position') {
           lastPositionStop = animationStop;
-          if (this.manualLookTargetPosition && this.manualLookTargetPosition.distanceTo(this.lookTarget.position) > 10) {
+          if (this.manualLookTargetPosition &&
+            this.manualLookTargetPosition.distanceTo(this.lookTarget.position) > 10
+          ) {
             this.cameraRigLookAt(this.manualLookTargetPosition);
           }
         }
@@ -491,7 +547,7 @@ class Pyrite {
 
   handleBackClick() {
     if (TWEEN.getAll().length !== 0) {
-      return;
+      return false;
     }
 
     if (this.previousAnimationStops) {
@@ -504,11 +560,16 @@ class Pyrite {
         const previousAnimationStop = this.previousAnimationStops.pop();
         this.currentStop = previousAnimationStop;
         if (previousAnimationStop.type === 'position') {
-          if (this.manualLookTargetPosition && this.manualLookTargetPosition.distanceTo(this.lookTarget.position) > 10) {
+          if (this.manualLookTargetPosition &&
+            this.manualLookTargetPosition.distanceTo(this.lookTarget.position) > 10
+          ) {
             const manualLookTargetPosition = this.manualLookTargetPosition.clone();
-            repositionTween = new TWEEN.Tween(manualLookTargetPosition).to(this.lookTarget.position.clone(), this.tweenLengthInMs * 2).easing(TWEEN.Easing.Linear.None).onUpdate(() => {
-              this.cameraRigLookAt(manualLookTargetPosition);
-            });
+            repositionTween = new TWEEN.Tween(manualLookTargetPosition)
+              .to(this.lookTarget.position.clone(), this.tweenLengthInMs * 2)
+              .easing(TWEEN.Easing.Linear.None)
+              .onUpdate(() => {
+                this.cameraRigLookAt(manualLookTargetPosition);
+              });
           }
         }
         let tween = this.getTweenForAnimationStop(previousAnimationStop);
@@ -527,12 +588,14 @@ class Pyrite {
         }
 
         return true;
-      } else {
-        if (this.onPrevHole) {
-          return this.onPrevHole();
-        }
+      }
+
+      if (this.onPrevHole) {
+        return this.onPrevHole();
       }
     }
+
+    return false;
   }
 
   updateChevronPosition(mousePosition) {
@@ -551,7 +614,9 @@ class Pyrite {
         }
 
         if (this.previousAnimationStops.length > 0) {
-          distanceToPreviousStop = this.chevron.position.distanceTo(this.previousAnimationStops[this.previousAnimationStops.length - 1].value);
+          distanceToPreviousStop = this.chevron.position.distanceTo(
+            this.previousAnimationStops[this.previousAnimationStops.length - 1].value
+          );
           if (distanceToNextStop < distanceToPreviousStop) {
             this.setchevronLookTarget(this.currentHole.marker.position);
           } else {
@@ -567,15 +632,15 @@ class Pyrite {
 
   handleMouseMove(event) {
     if (this.chevronLookAtTarget) {
-      this.mousePosition.x = (event.clientX / this.renderer.domElement.clientWidth) * 2 - 1;
-      this.mousePosition.y = -(event.clientY / this.renderer.domElement.clientHeight) * 2 + 1;
+      this.mousePosition.x = ((event.clientX / this.renderer.domElement.clientWidth) * 2) - 1;
+      this.mousePosition.y = (-(event.clientY / this.renderer.domElement.clientHeight) * 2) + 1;
       this.updateChevronPosition(this.mousePosition);
     }
   }
 
   handleClick(event) {
-    this.mousePosition.x = (event.clientX / this.renderer.domElement.clientWidth) * 2 - 1;
-    this.mousePosition.y = -(event.clientY / this.renderer.domElement.clientHeight) * 2 + 1;
+    this.mousePosition.x = ((event.clientX / this.renderer.domElement.clientWidth) * 2) - 1;
+    this.mousePosition.y = (-(event.clientY / this.renderer.domElement.clientHeight) * 2) + 1;
     this.raycaster.setFromCamera(this.mousePosition, this.camera);
     const intersects = this.raycaster.intersectObject(this.cameraRig, true);
     let staticChevronClicked = false;
@@ -590,6 +655,7 @@ class Pyrite {
             this.handleForwardClick();
             staticChevronClicked = true;
             break;
+          default: break;
         }
       }
     }
@@ -632,16 +698,16 @@ class Pyrite {
   }
 
   shouldEnableNextChevron() {
-    return false;
+    return this.staticChevronsEnabled;
   }
 
   shouldEnablePrevChevron() {
-    return false;
+    return this.staticChevronsEnabled;
   }
 
   handleForwardClick() {
     if (TWEEN.getAll().length !== 0) {
-      return;
+      return false;
     }
 
     if (this.animationStops) {
@@ -653,11 +719,16 @@ class Pyrite {
         this.currentStop = animationStop;
         let repositionTween = null;
         if (animationStop.type === 'position') {
-          if (this.manualLookTargetPosition && this.manualLookTargetPosition.distanceTo(this.lookTarget.position) > 10) {
+          if (this.manualLookTargetPosition &&
+            this.manualLookTargetPosition.distanceTo(this.lookTarget.position) > 10
+          ) {
             const manualLookTargetPosition = this.manualLookTargetPosition.clone();
-            repositionTween = new TWEEN.Tween(manualLookTargetPosition).to(this.lookTarget.position.clone(), this.tweenLengthInMs * 2).easing(TWEEN.Easing.Linear.None).onUpdate(() => {
-              this.cameraRigLookAt(manualLookTargetPosition);
-            });
+            repositionTween = new TWEEN.Tween(manualLookTargetPosition)
+              .to(this.lookTarget.position.clone(), this.tweenLengthInMs * 2)
+              .easing(TWEEN.Easing.Linear.None)
+              .onUpdate(() => {
+                this.cameraRigLookAt(manualLookTargetPosition);
+              });
           }
         }
         let tween = this.getTweenForAnimationStop(animationStop);
@@ -674,16 +745,18 @@ class Pyrite {
           this.enablePrevChevron();
         }
         return true;
-      } else {
-        if (this.onNextHole) {
-          return this.onNextHole();
-        }
+      }
+
+      if (this.onNextHole) {
+        return this.onNextHole();
       }
     }
+
+    return false;
   }
 
   moveCameraToHole(hole) {
-        // Don't go to hole until we are done loading
+    // Don't go to hole until we are done loading
     if (!this.loader.initialCubesLoaded) {
       this.lastNavigationTarget = hole;
       this.moveCameraToDefaultPosition();
@@ -693,11 +766,15 @@ class Pyrite {
     this.currentHole = hole;
 
     this.setchevronLookTarget(hole.marker.position);
-        // Move camera up to default height (while looking at current target?)
+    // Move camera up to default height (while looking at current target?)
 
     if (!this.lookTarget) {
-            // First move, don't animate
-      this.cameraRig.position.set(hole.tees[0].marker.position.x, hole.tees[0].marker.position.y + 15, hole.tees[0].marker.position.z);
+      // First move, don't animate
+      this.cameraRig.position.set(
+        hole.tees[0].marker.position.x,
+        hole.tees[0].marker.position.y + 15,
+        hole.tees[0].marker.position.z
+      );
       this.cameraRigLookAt(hole.marker.position);
       this.cameraRig.translateOnAxis(new THREE.Vector3(0, 0, 1), 75);
       return;
@@ -716,9 +793,11 @@ class Pyrite {
 
     const targetVector = this.cameraRig.position.clone();
     targetVector.y += moveToHoleRiseUpHeight;
-    let stops = Math.ceil(moveToHoleRiseUpHeight / this.automatedTweenSpeedPointsPerMs / this.tweenLengthInMs);
+    let stops = Math.ceil(
+      moveToHoleRiseUpHeight / this.automatedTweenSpeedPointsPerMs / this.tweenLengthInMs
+    );
 
-    var curve = new THREE.CatmullRomCurve3([
+    let curve = new THREE.CatmullRomCurve3([
       this.cameraRig.position.clone(),
       targetVector,
     ]);
@@ -728,14 +807,21 @@ class Pyrite {
       }
     });
 
-        // var upToDefaultHeightTween = new TWEEN.Tween(this.cameraRig.position).to({
-        //     y: this.cameraRig.position.y + 100
-        // }, 3000).easing(TWEEN.Easing.Linear.None).onUpdate(() => { this.cameraRigLookAt(this.lookTarget.position); });//.onComplete(() => console.log('upToDefaultHeightTween done'));
+    // var upToDefaultHeightTween = new TWEEN.Tween(this.cameraRig.position).
+    // to({
+    //     y: this.cameraRig.position.y + 100
+    // }, 3000).
+    //    easing(TWEEN.Easing.Linear.None).
+    // onUpdate(() => { this.cameraRigLookAt(this.lookTarget.position); });
+    // .onComplete(() => console.log('upToDefaultHeightTween done'));
 
 
-        // var lookAtNewHoleTween = new TWEEN.Tween(this.lookTarget.position).to(hole.marker.position, 3000).easing(TWEEN.Easing.Linear.None).onUpdate(() => {
-        //     this.cameraRigLookAt(this.lookTarget.position);
-        // });
+    // var lookAtNewHoleTween = new TWEEN.Tween(this.lookTarget.position).
+    // to(hole.marker.position, 3000).
+    // easing(TWEEN.Easing.Linear.None).
+    // onUpdate(() => {
+    //     this.cameraRigLookAt(this.lookTarget.position);
+    // });
 
     const distance = this.lookTarget.position.distanceTo(hole.marker.position);
     stops = Math.ceil(distance / this.automatedTweenSpeedPointsPerMs / this.tweenLengthInMs);
@@ -749,7 +835,7 @@ class Pyrite {
       }
     });
 
-        // upToDefaultHeightTween.chain(lookAtNewHoleTween);
+    // upToDefaultHeightTween.chain(lookAtNewHoleTween);
 
     const moveBackVector = hole.tees[0].marker.position.clone().sub(hole.marker.position);
     moveBackVector.normalize();
@@ -757,16 +843,20 @@ class Pyrite {
     const finalPosition = hole.tees[0].marker.position.clone().addScaledVector(moveBackVector, 15);
     finalPosition.y += 6;
 
-        // var positionTween = new TWEEN.Tween(this.cameraRig.position).to({
-        //     x: finalPosition.x,
-        //     y: finalPosition.y,
-        //     z: finalPosition.z
-        // }, 5000).easing(TWEEN.Easing.Linear.None).onUpdate(() => {
-        //     this.cameraRigLookAt(hole.marker.position);
-        // });
+    // var positionTween = new TWEEN.Tween(this.cameraRig.position).to({
+    //     x: finalPosition.x,
+    //     y: finalPosition.y,
+    //     z: finalPosition.z
+    // }, 5000).easing(TWEEN.Easing.Linear.None).onUpdate(() => {
+    //     this.cameraRigLookAt(hole.marker.position);
+    // });
 
-    stops = Math.ceil(targetVector.distanceTo(finalPosition) / this.automatedTweenSpeedPointsPerMs / this.tweenLengthInMs);
-    var curve = new THREE.CatmullRomCurve3([
+    stops = Math.ceil(
+      targetVector.distanceTo(finalPosition) /
+      this.automatedTweenSpeedPointsPerMs /
+      this.tweenLengthInMs
+    );
+    curve = new THREE.CatmullRomCurve3([
       targetVector.clone(),
       finalPosition,
     ]);
@@ -776,26 +866,37 @@ class Pyrite {
       }
     });
 
-        // lookAtNewHoleTween.chain(positionTween);
+    // lookAtNewHoleTween.chain(positionTween);
 
 
     const holeBackedUpPosition = hole.marker.position.clone().addScaledVector(moveBackVector, 60);
     holeBackedUpPosition.y += 15;
-        // var moveToHoleTween = new TWEEN.Tween(this.cameraRig.position).to({
-        //     x: holeBackedUpPosition.x,
-        //     y: [holeBackedUpPosition.y + finalPosition.distanceTo(hole.marker.position) / 8, holeBackedUpPosition.y],
-        //     z: holeBackedUpPosition.z
-        // }, 8000).easing(TWEEN.Easing.Linear.None).onUpdate(() => {
-        //     this.cameraRigLookAt(hole.marker.position);
-        // });
+    // var moveToHoleTween = new TWEEN.Tween(this.cameraRig.position).to({
+    //     x: holeBackedUpPosition.x,
+    //     y: [
+    //          holeBackedUpPosition.y + finalPosition.distanceTo(hole.marker.position) / 8,
+    //          holeBackedUpPosition.y
+    //        ],
+    //     z: holeBackedUpPosition.z
+    // }, 8000).easing(TWEEN.Easing.Linear.None).onUpdate(() => {
+    //     this.cameraRigLookAt(hole.marker.position);
+    // });
 
-        // moveToHoleTween.delay(this.tweenLengthInMs);
-        // add delay = 1 second day (this should be clculated as speed/animationsteplengthinsecs or something)
+    // moveToHoleTween.delay(this.tweenLengthInMs);
+    // add delay = 1 second day
+    //  (this should be clculated as speed/animationsteplengthinsecs or something)
     this.animationStops.push({ type: 'pause' });
-    stops = Math.ceil(finalPosition.distanceTo(holeBackedUpPosition) / this.tweenSpeedPointsPerMs / this.tweenLengthInMs);
-    var curve = new THREE.CatmullRomCurve3([
+    stops = Math.ceil(
+      finalPosition.distanceTo(holeBackedUpPosition) /
+      this.tweenSpeedPointsPerMs /
+      this.tweenLengthInMs
+    );
+    curve = new THREE.CatmullRomCurve3([
       finalPosition,
-      finalPosition.clone().lerp(holeBackedUpPosition, 0.5).add(new THREE.Vector3(0, finalPosition.distanceTo(hole.marker.position) / 8, 0)),
+      finalPosition.clone().lerp(holeBackedUpPosition, 0.5).add(
+        new THREE.Vector3(0, finalPosition.distanceTo(hole.marker.position) / 8,
+          0
+        )),
       holeBackedUpPosition,
     ]);
     curve.getSpacedPoints(stops).forEach((point, index) => {
@@ -804,32 +905,56 @@ class Pyrite {
       }
     });
 
-        // positionTween.chain(moveToHoleTween);
+    // positionTween.chain(moveToHoleTween);
 
-        // upToDefaultHeightTween.start();
+    // upToDefaultHeightTween.start();
 
 
-        // this.animationStops.forEach((stop) => {
-        //     console.log(`${stop.type} : ${(stop.type === 'pause') ? '' : `(${stop.value.x}, ${stop.value.y}, ${stop.value.z})`}`);
-        // });
+    // this.animationStops.forEach((stop) => {
+    //     console.log(`${stop.type} : ${(stop.type === 'pause') ? '' : \
+    //                 `(${stop.value.x}, ${stop.value.y}, ${stop.value.z})`}`);
+    // });
 
 
     this.runAnimationTillPause();
 
-        // this.cameraRig.position.set(hole.marker.position.x, this.cameraPos.y, hole.marker.position.z);
-        // console.log(`Move to ${hole.HoleNumber}`);
-        // console.log(hole);
-        // this.cameraRig.position.set(hole.tees[0].marker.position.x, hole.tees[0].marker.position.y + 30, hole.tees[0].marker.position.z);
+    // this.cameraRig.position.set(
+    //   hole.marker.position.x,
+    //   this.cameraPos.y,
+    //   hole.marker.position.z
+    // );
+    // console.log(`Move to ${hole.HoleNumber}`);
+    // console.log(hole);
+    // this.cameraRig.position.set(
+    //   hole.tees[0].marker.position.x,
+    //   hole.tees[0].marker.position.y + 30,
+    //   hole.tees[0].marker.position.z
+    // );
 
 
-        // var currentCameraRotation = this.camera.rotation.clone();
-        // var currentCameraRigRortation = this.cameraRig.rotation.clone();
-        // console.log(`Current Camera World Direction: ${this.camera.getWorldDirection().x} ${this.camera.getWorldDirection().y} ${this.camera.getWorldDirection().z}`);
-        // console.log(`Current Camera Rotation: ${currentCameraRotation.x} ${currentCameraRotation.y} ${currentCameraRotation.z}`);
-        // console.log(`Current CameraPosition ${this.camera.position.x} ${this.camera.position.y} ${this.camera.position.z}`);
-        // console.log(`Current Rig Rotaiton: ${currentCameraRigRortation.x} ${currentCameraRigRortation.y} ${currentCameraRigRortation.z}`);
-        // console.log(`Current Rig POsition ${this.cameraRig.position.x} ${this.cameraRig.position.y} ${this.cameraRig.position.z}`);
-        // this.cameraRigLookAt(hole.marker.position);
+    // var currentCameraRotation = this.camera.rotation.clone();
+    // var currentCameraRigRortation = this.cameraRig.rotation.clone();
+    // console.log(`Current Camera World Direction: \
+    //             ${this.camera.getWorldDirection().x} \
+    //             ${this.camera.getWorldDirection().y} \
+    //             ${this.camera.getWorldDirection().z}`);
+    // console.log(`Current Camera Rotation: \
+    //             ${currentCameraRotation.x} \
+    //             ${currentCameraRotation.y} \
+    //             ${currentCameraRotation.z}`);
+    // console.log(`Current CameraPosition \
+    //             ${this.camera.position.x} \
+    //             ${this.camera.position.y} \
+    //             ${this.camera.position.z}`);
+    // console.log(`Current Rig Rotaiton: \
+    //             ${currentCameraRigRortation.x} \
+    //             ${currentCameraRigRortation.y} \
+    //             ${currentCameraRigRortation.z}`);
+    // console.log(`Current Rig POsition \
+    //             ${this.cameraRig.position.x} \
+    //             ${this.cameraRig.position.y} \
+    //             ${this.cameraRig.position.z}`);
+    // this.cameraRigLookAt(hole.marker.position);
   }
 
   stop() {
@@ -839,9 +964,9 @@ class Pyrite {
   shutdown() {
     const allTweens = TWEEN.getAll();
     TWEEN.removeAll();
-        // Probably need to dispose of everything Three js related
-        // TODO: Validate the following
-        // https://stackoverflow.com/questions/21453309/how-can-i-destroy-threejs-scene
+    // Probably need to dispose of everything Three js related
+    // TODO: Validate the following
+    // https://stackoverflow.com/questions/21453309/how-can-i-destroy-threejs-scene
     cancelAnimationFrame(this.nextAnimationRequestId);
 
     this.controls.dispose();
@@ -849,7 +974,7 @@ class Pyrite {
     delete this.controls.handleMouseMove;
     delete this.controls;
 
-        // this.cleanSkybox();
+    // this.cleanSkybox();
 
     if (this.holesAndTees) {
       this.holesAndTees.forEach((holeOrTee) => {
