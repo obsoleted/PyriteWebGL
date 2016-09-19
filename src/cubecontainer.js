@@ -1,11 +1,13 @@
 /* eslint no-unused-vars: ["off", { "args": "none" }]*/
 /* eslint no-console: ["off"]*/
+/* global URL:false, document:false */
 
 import THREE from 'three';
 import CubeBounds from './cubebounds.js';
-import CTMLoader from './ctm/ctmloader.js';
+import CTMLoader from './ctm/CTMLoader.js';
 import Pyrite from './pyrite.js';
 import Api from '../../actions/api.js';
+import PyriteException from './pyriteexception.js';
 
 class CubeContainer {
   constructor(detailLevel, config, cube) {
@@ -127,18 +129,19 @@ class CubeContainer {
       case 'loading':
         setTimeout(() => { if (this.isLoading) { this.load(callback, true); } }, 500);
         break;
-      case 'loaded':
+      case 'loaded': {
         const texture = this.detailLevel.Query.loader.cache.get(this.textureUrl);
         this.loadmesh(texture, callback);
         break;
-      case 'unloaded':
+      }
+      case 'unloaded': {
         this.detailLevel.Query.loader.textureState.set(this.textureUrl, 'loading');
 
-        var texture = new THREE.Texture();
-        var scope = this;
+        const texture = new THREE.Texture();
+        const scope = this;
         CubeContainer.api.cachedGet(this.textureUrl, 'blob').then((result) => {
           const image = document.createElementNS('http://www.w3.org/1999/xhtml', 'img');
-          image.onload = function () {
+          image.onload = function onload() {
             URL.revokeObjectURL(image.src);
             if (scope.detailLevel) {
               texture.format = THREE.RGBFormat;
@@ -152,14 +155,16 @@ class CubeContainer {
           image.src = URL.createObjectURL(result);
         });
         break;
+      }
       default:
-        throw `Unknown textureState = ${textureState}`;
+        throw new PyriteException(`Unknown textureState = ${textureState}`, 'CubeContainer');
     }
   }
 
   unload(force) {
-    if (this.debug)
+    if (this.debug) {
       this.cubeContainerGroup.remove(this.bbox);
+    }
 
 
     if (!this.downgradeParent && !force) {
@@ -181,7 +186,7 @@ class CubeContainer {
         if (texture) {
           texture.dispose();
         } else {
-          throw 'Error: Texture was not in cache.';
+          throw new PyriteException('Error: Texture was not in cache.', 'CubeContainer');
         }
 
         if (this.mesh) {
@@ -227,9 +232,11 @@ class CubeContainer {
     this.isLoaded = true;
     this.isLoading = false;
     if (this.debug) {
-      this.addBoundingBox(mesh, this);
+      this.addBoundingBox(mesh);
       // var axisHelper = new THREE.AxisHelper(50);
-      // axisHelper.position.set(_this.cube.worldCoords.x, _this.cube.worldCoords.z, -_this.cube.worldCoords.y);
+      // axisHelper.position.set(_this.cube.worldCoords.x,
+      //                         _this.cube.worldCoords.z,
+      //                         -_this.cube.worldCoords.y);
       // _this.cubeContainerGroup.add(axisHelper);
     }
 
@@ -247,9 +254,11 @@ class CubeContainer {
 
     //             marker.marker.translateY(-1 * (intersects[0].distance));
     //             if (marker.TeeId) {
-    //                 console.log(`Tee: ${marker.TeeId} ${translateYValue} ${marker.marker.position.y}`);
+    //                 console.log(`Tee: ${marker.TeeId} ${translateYValue} \
+    //                               ${marker.marker.position.y}`);
     //             } else {
-    //                 console.log(`Hole: ${marker.HoleId} ${translateYValue} ${marker.marker.position.y}`);
+    //                 console.log(`Hole: ${marker.HoleId} ${translateYValue} \
+    //                              ${marker.marker.position.y}`);
     //             }
     //             marker.nearCubes.forEach((nearCube) => {
     //                 if (nearCube !== this && nearCube.nearMarkers) {
@@ -268,9 +277,11 @@ class CubeContainer {
 
     //                 marker.marker.translateY( (intersects[0].distance));
     //                 if (marker.TeeId) {
-    //                     console.log(`uTee: ${marker.TeeId} ${translateYValue} ${marker.marker.position.y}`);
+    //                     console.log(`uTee: ${marker.TeeId} ${translateYValue} \
+    //                                  ${marker.marker.position.y}`);
     //                 } else {
-    //                     console.log(`uHole: ${marker.HoleId} ${translateYValue} ${marker.marker.position.y}`);
+    //                     console.log(`uHole: ${marker.HoleId} ${translateYValue} \
+    //                                  ${marker.marker.position.y}`);
     //                 }
     //                 marker.nearCubes.forEach((nearCube) => {
     //                     if (nearCube !== this && nearCube.nearMarkers) {
@@ -316,9 +327,9 @@ class CubeContainer {
     }, cache); // , {useWorker: false, worker: new Worker('js/ctm/CTMWorker.js')} );
   }
 
-  addBoundingBox(mesh, that) {
-    const value = that.detailLevel.Value;
-    const cubeContainerGroup = that.cubeContainerGroup;
+  addBoundingBox(mesh) {
+    const value = this.detailLevel.Value;
+    const cubeContainerGroup = this.cubeContainerGroup;
     let hex = 0xff0000;
     switch (value) {
       case 0:
@@ -340,9 +351,9 @@ class CubeContainer {
         hex = 0xffffff;
         break;
     }
-    that.bbox = new THREE.BoundingBoxHelper(mesh, hex);
-    that.bbox.update();
-    cubeContainerGroup.add(that.bbox);
+    this.bbox = new THREE.BoundingBoxHelper(mesh, hex);
+    this.bbox.update();
+    cubeContainerGroup.add(this.bbox);
   }
 
   upgradable() {
@@ -354,14 +365,15 @@ class CubeContainer {
   }
 
   shouldUpgrade(cameraPos) {
-    if (this.detailLevel.isHighestLod() || this.detailLevel.Value < this.config.maxlod)
+    if (this.detailLevel.isHighestLod() || this.detailLevel.Value < this.config.maxlod) {
       return false;
+    }
+
     if (this.mesh) {
       const distance = this.cube.worldCoords.distanceTo(cameraPos);
       return distance < this.detailLevel.UpgradeDistance;
     }
-    else
-      return false;
+    return false;
   }
 
   shouldDowngrade(cameraPos) {
@@ -369,8 +381,8 @@ class CubeContainer {
       const distance = this.cube.worldCoords.distanceTo(cameraPos);
       return distance > this.detailLevel.DowngradeDistance;
     }
-    else
-      return false;
+
+    return false;
   }
 }
 
