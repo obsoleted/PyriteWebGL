@@ -5,29 +5,29 @@
  *
  * @tags inmemory, keyvalue, cache, node, browser
 */
-var MicroCache	= function(){
-	var _values	= {};
-	var _length = 0;
-	return {
-		get	: function(key){ return _values[key];	},
-		contains: function(key){ return key in _values;	},
-		remove	: function(key){ delete _values[key]; _length--;	},
-		set	: function(key, value){	if(!this.contains(key)) { _length++; } _values[key] = value; },
-		values	: function(){ return _values;	},
-		length : function () {
-			return _length;
+const MicroCache	= function () {
+	                                    const _values	= {};
+	                                      let _length = 0;
+	                                        return {
+		                                        get(key) { return _values[key];	},
+		                                        contains(key) { return key in _values;	},
+		                                        remove(key) { delete _values[key]; _length--;	},
+		                                        set(key, value) {	if (!this.contains(key)) { _length++; } _values[key] = value; },
+		                                        values() { return _values;	},
+		                                        length() {
+			                                        return _length;
 		},
-		getSet	: function(key, value){
-			if( !this.contains(key) ){
-				this.set(key, typeof value == 'function' ? value() : value );
+		                                        getSet(key, value) {
+			                                        if (!this.contains(key)) {
+				                                        this.set(key, typeof value == 'function' ? value() : value);
 			}
-			return this.get(key);
-		}
-	}
-}
+			                                        return this.get(key);
+		},
+	};
+};
 
 
 // export in common js
-if( typeof module !== 'undefined' && ('exports' in module)){
-	module.exports	= MicroCache;
+if (typeof module !== 'undefined' && ('exports' in module)) {
+	                                        module.exports	= MicroCache;
 }
