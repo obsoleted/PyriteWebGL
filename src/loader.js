@@ -1,8 +1,15 @@
 import THREE from 'three';
 import PyriteQuery from './query.js';
 import MicroCache from './microcache.js';
-// import CubeContainer from './cubecontainer.js';
 import LRUCache from './lrucache.js';
+import PyriteException from './pyriteexception.js';
+
+
+const LoadType = {};
+LoadType.CameraDetection = 0;
+LoadType.ThreeByThree = 1;
+LoadType[LoadType.CameraDetection] = 'CameraDetection';
+LoadType[LoadType.ThreeByThree] = 'ThreeByThree';
 
 class PyriteLoader {
   constructor(p, config) {
@@ -16,7 +23,7 @@ class PyriteLoader {
     this.singleLod = false;
     this.pyrite = p;
     this.query = new PyriteQuery(this, this.config);
-    this.camera;
+    // this.camera;
     this.cache = new LRUCache();
     this.textureState = new MicroCache();
 
@@ -77,14 +84,17 @@ class PyriteLoader {
   }
 
   update(camera) {
-    if (this.singleLod)
+    if (this.singleLod) {
       return; // if there is a lod set in the query string, then we won't upgrade
+    }
 
     if (this.query) {
       switch (this.loadType) {
         case LoadType.CameraDetection:
           this.updateCameraDetection(camera);
           break;
+        default: throw new PyriteException(`Unsupported LoadType: ${this.loadType}`,
+          'PyriteLoader');
       }
     }
   }
@@ -95,16 +105,16 @@ class PyriteLoader {
 
 
   loadInitialCubes() {
-        // Gets the lowest level of detail and adds all it's cubes as the current set of detection cubes
+    // Gets the lowest level of detail and adds all it's cubes as the current set of detection cubes
     const lowestLevelOfDetailIndex = this.query.DetailLevels.length - 1;
     const lowestLevelOfDetail = this.query.DetailLevels[lowestLevelOfDetailIndex];
-        // lowestLevelOfDetail.loadCubeContainers(this.showPlaceholders);
+    // lowestLevelOfDetail.loadCubeContainers(this.showPlaceholders);
     this.activeCubeContainers = lowestLevelOfDetail.Cubes.slice(0);
     let expectedLoadedCCs = this.activeCubeContainers.length;
     this.activeCubeContainers.forEach((cc) => {
       cc.init(this.pyrite.cubeDetectorGroup, this.pyrite.modelMeshGroup, this.showPlaceholder);
       cc.load(() => {
-        expectedLoadedCCs--;
+        expectedLoadedCCs -= 1;
         if ((expectedLoadedCCs) === 0) {
           this.initialCubesLoaded = true;
           if (this.handleInitialCubesLoaded) {
@@ -116,8 +126,9 @@ class PyriteLoader {
   }
 
   loadCubes(cameraRig) {
-    if (!this.initialCubesLoaded)
+    if (!this.initialCubesLoaded) {
       return;
+    }
 
     const camera = cameraRig.children[0];
 
@@ -127,22 +138,24 @@ class PyriteLoader {
     let cubesWithParentsWithoutMesh = 0;
     let cubesCanDowngrade = 0;
 
-    for (var i = 0; i < this.activeCubeContainers.length; i++) {
+    for (let i = 0; i < this.activeCubeContainers.length; i += 1) {
       const activeCubeContainer = this.activeCubeContainers[i];
       activeCubeContainer.canDowngrade = false;
       const distance = cameraRig.position.distanceTo(activeCubeContainer.placeholderMesh.position);
       let downgradeDistance = null;
 
-            // Calculate downgrade distance (if possible)
+      // Calculate downgrade distance (if possible)
       if (activeCubeContainer.downgradeParent) {
-        cubesWithParents++;
+        cubesWithParents += 1;
         if (activeCubeContainer.downgradeParent.placeholderMesh) {
-          cubesWithParentsWithMesh++;
-          downgradeDistance = cameraRig.position.distanceTo(activeCubeContainer.downgradeParent.placeholderMesh.position);
+          cubesWithParentsWithMesh += 1;
+          downgradeDistance = cameraRig.position.distanceTo(
+            activeCubeContainer.downgradeParent.placeholderMesh.position
+          );
         } else {
-          cubesWithParentsWithoutMesh++;
+          cubesWithParentsWithoutMesh += 1;
           downgradeDistance = -1;
-          throw 'ERROR: Parent exists without placeholder mesh';
+          throw new PyriteException('ERROR: Parent exists without placeholder mesh', 'PyriteLoader');
         }
       }
 
@@ -152,9 +165,11 @@ class PyriteLoader {
         upgradingEnabled = this.isUpgradingEnabled();
       }
 
-      if (upgradingEnabled && activeCubeContainer.detailLevel.upgradeLevel && distance < activeCubeContainer.detailLevel.UpgradeDistance) {
-                // Cube can be upgrade (i.e. Replaced with higher detailed (smaller) cubes)
-        this.totalUpgraded++;
+      if (upgradingEnabled &&
+        activeCubeContainer.detailLevel.upgradeLevel &&
+        distance < activeCubeContainer.detailLevel.UpgradeDistance) {
+        // Cube can be upgrade (i.e. Replaced with higher detailed (smaller) cubes)
+        this.totalUpgraded += 1;
         activeCubeContainer.upgraded = true;
         activeCubeContainer.upgrading = true;
         this.cubesToUpgrade.push(activeCubeContainer);
@@ -166,120 +181,138 @@ class PyriteLoader {
         });
         if (this.showPlaceholders) activeCubeContainer.hidePlaceholder();
         this.activeCubeContainers.splice(i, 1);
-        i--;
-      } else if (downgradeDistance && (downgradeDistance > activeCubeContainer.downgradeParent.detailLevel.DowngradeDistance || downgradeDistance === -1)) {
-                // Cube is far enough away to be downgraded if possible
-                // Downgrading depends on if all children of the lower resolution cube are far enough away
-        cubesCanDowngrade++;
+        i -= 1;
+      } else if (downgradeDistance &&
+        (downgradeDistance > activeCubeContainer.downgradeParent.detailLevel.DowngradeDistance ||
+          downgradeDistance === -1)
+      ) {
+        // Cube is far enough away to be downgraded if possible
+        // Downgrading depends on if all children of the lower resolution cube are far enough away
+        cubesCanDowngrade += 1;
         activeCubeContainer.canDowngrade = true;
 
         if (this.pyrite.debugStats) {
           activeCubeContainer.downgradeParent.upgradeChildren.forEach((sibling) => {
             if (!sibling.upgraded && this.activeCubeContainers.indexOf(sibling) === -1) {
-              throw 'ERROR: A sibling cube is not in the active cube list.';
+              throw new PyriteException('ERROR: A sibling cube is not in the active cube list.',
+                'PyriteLoader');
             }
           });
         }
       }
 
-      if (activeCubeContainer.canDowngrade && activeCubeContainer.downgradeParent.upgradeChildren.every(sibling => sibling.canDowngrade)) {
+      if (activeCubeContainer.canDowngrade &&
+        activeCubeContainer.downgradeParent.upgradeChildren.every(
+          sibling => sibling.canDowngrade)
+      ) {
         if (activeCubeContainer.downgradeParent.upgrading) {
-                    // The parent was upgrading (waiting for some children). But now should be added back
+          // The parent was upgrading (waiting for some children). But now should be added back
           const indexOfParent = this.cubesToUpgrade.indexOf(activeCubeContainer.downgradeParent);
 
           if (indexOfParent === -1) {
-            throw 'Unexpected Condition - downgrade parent was upgrading but not in upgrade list.';
+            throw new PyriteException(
+              'Unexpected Condition - downgrade parent was upgrading but not in upgrade list.',
+              'PyriteLoader');
           }
           activeCubeContainer.downgradeParent.upgrading = false;
           this.cubesToUpgrade.splice(indexOfParent, 1);
         }
 
-                // If this cube was downgradable and all its siblings are downgradable then we can bring back
-                // the lower detailed (and larger) parent cube
-        this.totalDowngraded++;
+        // If this cube was downgradable and all its siblings are downgradable then we can bring
+        //  back the lower detailed (and larger) parent cube
+        this.totalDowngraded += 1;
         activeCubeContainer.downgradeParent.upgradeChildren.forEach((sibling) => {
-                    // The parent placeholder is active so we can remove this from active list (and remove placeholder (deinit))
+          // The parent placeholder is active so we can remove this from active list
+          //  (and remove placeholder (deinit))
           const indexOfCubeToDowngrade = this.activeCubeContainers.indexOf(sibling);
           if (indexOfCubeToDowngrade !== -1) {
             this.activeCubeContainers.splice(indexOfCubeToDowngrade, 1);
             if (this.showPlaceholders) sibling.hidePlaceholder();
             sibling.deinit();
           } else {
-            throw 'ERROR: Sibling was not in the active container list';
+            throw new PyriteException('ERROR: Sibling was not in the active container list',
+              'PyriteLoader');
           }
         });
 
-        this.cubesToDowngrade = this.cubesToDowngrade.concat(activeCubeContainer.downgradeParent.upgradeChildren);
+        this.cubesToDowngrade =
+          this.cubesToDowngrade.concat(activeCubeContainer.downgradeParent.upgradeChildren);
         if (this.showPlaceholders) activeCubeContainer.downgradeParent.showPlaceholder();
         activeCubeContainer.downgradeParent.canDowngrade = false;
         activeCubeContainer.downgradeParent.upgraded = false;
 
         this.activeCubeContainers.push(activeCubeContainer.downgradeParent);
       } else if (!activeCubeContainer.upgrading) {
-                // Eligible for loading
-                // Check for intersection
+        // Eligible for loading
+        // Check for intersection
         if (this.vf.intersectsObject(activeCubeContainer.placeholderMesh)) {
           if (!activeCubeContainer.isLoaded && !activeCubeContainer.isLoading) {
-            this.totalLoaded++;
+            this.totalLoaded += 1;
             activeCubeContainer.load();
           }
-        } else {
-          if (activeCubeContainer.isLoaded || activeCubeContainer.isLoading) {
-            this.totalUnloaded++;
-            activeCubeContainer.unload();
-          }
+        } else if (activeCubeContainer.isLoaded || activeCubeContainer.isLoading) {
+          this.totalUnloaded += 1;
+          activeCubeContainer.unload();
         }
       }
     }
 
-        // For cubes that are being upgraded remove their model only when ALL their children are either:
-        //     - upgraded
-        //     - model loaded
-        //     - neither (no upgraded and not in camera)
-    for (var i = 0; i < this.cubesToUpgrade.length; i++) {
+    // For cubes that are being upgraded remove their model only when ALL their children are
+    //   either:
+    //     - upgraded
+    //     - model loaded
+    //     - neither (no upgraded and not in camera)
+    for (let i = 0; i < this.cubesToUpgrade.length; i += 1) {
       const cubeToUpgrade = this.cubesToUpgrade[i];
       if (cubeToUpgrade.upgradeChildren.every(child => !child.upgrading && !child.isLoading)) {
         if (cubeToUpgrade.isLoaded || cubeToUpgrade.isLoading) {
-          this.totalUnloaded++;
+          this.totalUnloaded += 1;
           cubeToUpgrade.unload();
         }
         cubeToUpgrade.upgrading = false;
         this.cubesToUpgrade.splice(i, 1);
-        i--;
+        i -= 1;
       }
     }
 
-    for (var i = 0; i < this.cubesToDowngrade.length; i++) {
+    for (let i = 0; i < this.cubesToDowngrade.length; i += 1) {
       const cubeToDowngrade = this.cubesToDowngrade[i];
       cubeToDowngrade.downgrading = true;
-            // If the parent is loaded then we can remove this model
+      // If the parent is loaded then we can remove this model
       if (!cubeToDowngrade.downgradeParent.isLoading) {
         if (cubeToDowngrade.isLoaded || cubeToDowngrade.isLoading) {
-          this.totalUnloaded++;
+          this.totalUnloaded += 1;
           cubeToDowngrade.unload();
         }
         cubeToDowngrade.downgrading = false;
         this.cubesToDowngrade.splice(i, 1);
-        i--;
+        i -= 1;
       }
     }
 
     if (this.pyrite.debugStats && (Date.now() - this.lastDebugOutput > this.debugFrequencyInMS)) {
-            // console.log(`ActiveCubeCount: ${this.activeCubeContainers.length}`);
-            // console.log(`CubesToUpgrade: ${this.cubesToUpgrade.length}, CubesToDowngrade: ${this.cubesToDowngrade.length}`)
-            // console.log(`TextureCacheSize: ${this.cache.length()} TextureStateSize: ${this.textureState.length()}`);
+      // console.log(`ActiveCubeCount: ${this.activeCubeContainers.length}`);
+      // console.log(`CubesToUpgrade: ${this.cubesToUpgrade.length},\
+      //               CubesToDowngrade: ${this.cubesToDowngrade.length}`
+      // );
+      // console.log(`TextureCacheSize: ${this.cache.length()} \
+      //               TextureStateSize: ${this.textureState.length()}`
+      // );
       this.lastDebugOutput = Date.now();
-      this.pyrite.statsContainer.innerHTML = `ACCs: ${this.activeCubeContainers.length}, CTD: ${this.cubesToDowngrade.length}, CTU: ${this.cubesToUpgrade.length}, CWP: ${cubesWithParents}, CWPWM: ${cubesWithParentsWithMesh}, CWPWOM: ${cubesWithParentsWithoutMesh}, CCD: ${cubesCanDowngrade}`;
+      this.pyrite.statsContainer.innerHTML = `ACCs: ${this.activeCubeContainers.length}, \
+                                              CTD: ${this.cubesToDowngrade.length}, \
+                                              CTU: ${this.cubesToUpgrade.length}, \
+                                              CWP: ${cubesWithParents}, \
+                                              CWPWM: ${cubesWithParentsWithMesh}, \
+                                              CWPWOM: ${cubesWithParentsWithoutMesh}, \
+                                              CCD: ${cubesCanDowngrade}`;
       this.pyrite.statsContainer.innerHTML += '<br/>';
-      this.pyrite.statsContainer.innerHTML += `TotalLoaded: ${this.totalLoaded}, TotalUnloaded: ${this.totalUnloaded}, TotalUpgraded: ${this.totalUpgraded}, TotalDowngraded: ${this.totalDowngraded}`;
+      this.pyrite.statsContainer.innerHTML += `TotalLoaded: ${this.totalLoaded}, \
+                                               TotalUnloaded: ${this.totalUnloaded}, \
+                                               TotalUpgraded: ${this.totalUpgraded}, \
+                                               TotalDowngraded: ${this.totalDowngraded}`;
     }
   }
 }
 
 export default PyriteLoader;
-
-let LoadType;
-(((LoadType) => {
-  LoadType[LoadType.CameraDetection = 0] = 'CameraDetection';
-  LoadType[LoadType.ThreeByThree = 1] = 'ThreeByThree';
-}))(LoadType || (LoadType = {}));
