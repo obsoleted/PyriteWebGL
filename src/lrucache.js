@@ -12,7 +12,7 @@ class LRUCache {
 
   get(key) {
     const value = this.values[key];
-    value.refCount++;
+    value.refCount += 1;
     return value.value;
   }
 
@@ -24,7 +24,7 @@ class LRUCache {
   remove(key) {
     const value = this.values[key];
     delete this.values[key];
-    this.size--;
+    this.size -= 1;
     return value.value;
   }
 
@@ -34,7 +34,7 @@ class LRUCache {
       value,
     };
     this.values[key] = newValue;
-    this.size++;
+    this.size += 1;
   }
 
   values() {
@@ -47,14 +47,15 @@ class LRUCache {
 
   getSet(key, value) {
     if (!this.contains(key)) {
-      this.set(key, typeof value == 'function' ? value() : value);
+      this.set(key, typeof value === 'function' ? value() : value);
     }
 
     return this.get(key).value;
   }
 
   release(key) {
-    return --this.values[key].refCount;
+    this.values[key].refCount -= 1;
+    return this.values[key].refCount;
   }
 }
 
