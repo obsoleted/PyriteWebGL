@@ -8,16 +8,16 @@ class PyriteDetailLevel {
     this.Cubes = [];
     this.cubeContainerGroup = cubeContainerGroup;
     this.modelMeshGroup = modelMeshGroup;
-    this.WorldBoundsMin;
-    this.WorldBoundsMax;
-    this.distance;
-    this.UpgradeDistance;
-    this.DowngradeDistance;
-    this.LODUpperThreshold;
-    this.LODLowerThreshold;
-    this.worldCenterPos;
-    this.upgradeLevel = null;
-    this.downgradeLevel = null;
+    // this.WorldBoundsMin;
+    // this.WorldBoundsMax;
+    // this.distance;
+    // this.UpgradeDistance;
+    // this.DowngradeDistance;
+    // this.LODUpperThreshold;
+    // this.LODLowerThreshold;
+    // this.worldCenterPos;
+    // this.upgradeLevel = null;
+    // this.downgradeLevel = null;
   }
 
   dispose() {
@@ -84,7 +84,7 @@ class PyriteDetailLevel {
       if (cube.x == x && cube.y == y && cube.z == z) {
         this.Cubes.splice(i, 1);
       }
-            // cube.destroy();
+      // cube.destroy();
       cube = null;
     }
   }
@@ -92,7 +92,7 @@ class PyriteDetailLevel {
   fixWorldCoords() {
     const cubes = this.Cubes;
     for (let i = 0; i < cubes.length; i++) {
-      cubes[i].cube.worldCoords = this.GetWorldCoordinatesForCube(cubes[i].cube);
+      cubes[i].cube.worldCoords = this.getWorldCoordinatesForCube(cubes[i].cube);
       const worldCoords = cubes[i].cube.worldCoords;
 
       cubes[i].cube.correctedWorldCoords = new THREE.Vector3(worldCoords.x, worldCoords.z, worldCoords.y * -1.0);
@@ -112,21 +112,21 @@ class PyriteDetailLevel {
     return new THREE.Vector2(Math.floor(textureXPosition), Math.floor(textureYPosition));
   }
 
-  GetWorldCoordinatesForCube(cube) {
-    return this.GetWorldCoordinatesForCubeCoords(cube.x, cube.y, cube.z);
+  getWorldCoordinatesForCube(cube) {
+    return this.getWorldCoordinatesForCubeCoords(cube.x, cube.y, cube.z);
   }
 
-  GetWorldCoordinatesForCubeVector(vector) {
-    return this.GetWorldCoordinatesForCubeCoords(vector.x, vector.y, vector.z);
+  getWorldCoordinatesForCubeVector(vector) {
+    return this.getWorldCoordinatesForCubeCoords(vector.x, vector.y, vector.z);
   }
 
-  GetWorldCoordinatesForCubeCoords(x, y, z) {
+  getWorldCoordinatesForCubeCoords(x, y, z) {
     const xPos = this.WorldBoundsMin.x + this.WorldCubeScale.x * x +
-            this.WorldCubeScale.x * 0.5;
+      this.WorldCubeScale.x * 0.5;
     const yPos = this.WorldBoundsMin.y + this.WorldCubeScale.y * y +
-            this.WorldCubeScale.y * 0.5;
+      this.WorldCubeScale.y * 0.5;
     const zPos = this.WorldBoundsMin.z + this.WorldCubeScale.z * z +
-            this.WorldCubeScale.z * 0.5;
+      this.WorldCubeScale.z * 0.5;
     return new THREE.Vector3(xPos, yPos, zPos);
   }
 
@@ -137,24 +137,24 @@ class PyriteDetailLevel {
     if (this.cubeExists(cx, cy, cz)) {
       return this.getCube(cx, cy, cz);
     }
-    else {
-      const cube = new Cube();
-      cube.x = cx;
-      cube.y = cy;
-      cube.z = cz;
-      const newContainer = new CubeContainer(this, null, cube);
-      newContainer.cube.worldCoords = this.GetWorldCoordinatesForCube(newContainer.cube);
-            // newContainer.bounds = new CubeBounds(newContainer);
-      newContainer.DetailLevel = this;
-      return newContainer;
-    }
+
+    const cube = new Cube();
+    cube.x = cx;
+    cube.y = cy;
+    cube.z = cz;
+    const newContainer = new CubeContainer(this, null, cube);
+    newContainer.cube.worldCoords = this.getWorldCoordinatesForCube(newContainer.cube);
+    // newContainer.bounds = new CubeBounds(newContainer);
+    newContainer.DetailLevel = this;
+    return newContainer;
   }
 
   getCube(x, y, z) {
     let cube = null;
     this.Cubes.forEach((c) => {
-      if (c.cube.x == x && c.cube.y == y && c.cube.z == z)
+      if (c.cube.x === x && c.cube.y === y && c.cube.z === z) {
         cube = c;
+      }
     });
     return cube;
   }
