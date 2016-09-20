@@ -155,15 +155,15 @@ class Pyrite {
         if (holes) {
           this.holes = holes;
           holes.forEach((hole) => {
-            const { holeEasting, holeNorthing } = utm.convertLatLngToUtm(
+            let { Easting, Northing } = utm.convertLatLngToUtm(
               hole.GreenLocation.coordinates[1],
               hole.GreenLocation.coordinates[0]
             );
             const holeMarker = new THREE.Mesh(this.markerGeometry, this.markerMaterial);
             holeMarker.position.set(
-              holeEasting - this.modelConfig.utmOffset.x,
+              Easting - this.modelConfig.utmOffset.x,
               500,
-              (holeNorthing - this.modelConfig.utmOffset.z) * -1
+              (Northing - this.modelConfig.utmOffset.z) * -1
             );
             hole.marker = holeMarker;
             this.scene.add(holeMarker);
@@ -171,16 +171,16 @@ class Pyrite {
             if (hole.tees && hole.tees[0] && hole.tees[0].Location) {
               const tee = hole.tees[0];
 
-              const { teeEasting, teeNorthing } = utm.convertLatLngToUtm(
+              ({ Easting, Northing } = utm.convertLatLngToUtm(
                 tee.Location.coordinates[1],
                 tee.Location.coordinates[0]
-              );
+              ));
 
               const teeMarker = new THREE.Object3D();
               teeMarker.position.set(
-                teeEasting - this.modelConfig.utmOffset.x,
+                Easting - this.modelConfig.utmOffset.x,
                 500,
-                (teeNorthing - this.modelConfig.utmOffset.z) * -1
+                (Northing - this.modelConfig.utmOffset.z) * -1
               );
               tee.marker = teeMarker;
               this.scene.add(teeMarker);
