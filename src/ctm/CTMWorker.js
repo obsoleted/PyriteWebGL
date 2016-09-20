@@ -1,3 +1,6 @@
+/* eslint-disable */
+// Disable ES LINT Because external (Three.js)
+
 importScripts('lzma.js', 'ctm.js');
 
 self.onmessage = function (event) {

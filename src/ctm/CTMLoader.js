@@ -1,3 +1,6 @@
+/* eslint-disable */
+// Disable ES LINT Because external (Three.js)
+
 import THREE from 'three';
 import CTM from './ctm.js';
 import Api from '../../../actions/api.js';

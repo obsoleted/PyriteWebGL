@@ -1,4 +1,5 @@
-
+/* eslint-disable */
+// Disable ES LINT Because external (Three.js)
 const LZMA = LZMA || {};
 
 // browserify support

@@ -1,3 +1,5 @@
+/* eslint-disable */
+// Disable ES LINT Because external (Three.js)
 /*
 Copyright (c) 2011 Juan Mellado
 
