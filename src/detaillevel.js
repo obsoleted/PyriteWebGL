@@ -88,7 +88,7 @@ class PyriteDetailLevel {
     }
   }
 
-  TextureCoordinatesForCube(cubeX, cubeY) {
+  getTextureCoordinatesForCube(cubeX, cubeY) {
     const textureXPosition = (cubeX / (this.SetSize.x / this.TextureSetSize.x));
     const textureYPosition = (cubeY / (this.SetSize.y / this.TextureSetSize.y));
     return new THREE.Vector2(Math.floor(textureXPosition), Math.floor(textureYPosition));
