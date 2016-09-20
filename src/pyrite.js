@@ -1,4 +1,5 @@
 /* eslint no-unused-vars: ["off"]*/
+/* eslint comma-dangle: ["error", "only-multiline"]*/
 /* global window:false, document:false requestAnimationFrame:false cancelAnimationFrame: false */
 
 import THREE from 'three';

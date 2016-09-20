@@ -1,5 +1,6 @@
 /* eslint no-unused-vars: ["off", { "args": "none" }]*/
 /* eslint no-console: ["off"]*/
+/* eslint comma-dangle: ["error", "only-multiline"]*/
 /* global URL:false, document:false */
 
 import THREE from 'three';

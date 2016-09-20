@@ -1,4 +1,4 @@
-
+/* eslint comma-dangle: ["error", "only-multiline"]*/
 
 class LRUCache {
 

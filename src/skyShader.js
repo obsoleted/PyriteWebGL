@@ -14,6 +14,7 @@
  * Three.js integration by zz85 http://twitter.com/blurspline
 */
 /* eslint max-len: ["off"]*/
+/* eslint comma-dangle: ["error", "only-multiline"]*/
 import THREE from 'three';
 
 THREE.ShaderLib.sky = {

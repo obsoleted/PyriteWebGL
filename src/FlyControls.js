@@ -1,3 +1,4 @@
+/* eslint comma-dangle: ["error", "only-multiline"]*/
 /* global document:false, window:false */
 
 import THREE from 'three';
